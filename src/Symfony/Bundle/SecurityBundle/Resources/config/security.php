@@ -45,6 +45,7 @@ use Symfony\Component\Security\Core\User\InMemoryUserProvider;
 use Symfony\Component\Security\Core\User\MissingUserProvider;
 use Symfony\Component\Security\Core\Validator\Constraints\UserPasswordValidator;
 use Symfony\Component\Security\Http\Authentication\AuthenticationUtils;
+use Symfony\Component\Security\Http\Authorization\SameAsNotFullFledgedHandle;
 use Symfony\Component\Security\Http\Controller\SecurityTokenValueResolver;
 use Symfony\Component\Security\Http\Controller\UserValueResolver;
 use Symfony\Component\Security\Http\EventListener\IsGrantedAttributeListener;
@@ -230,6 +231,7 @@ return static function (ContainerConfigurator $container) {
                 [], // listeners
                 null, // switch_user
                 null, // logout
+                null, //not_full_fledged_handler
             ])
 
         ->set('security.logout_url_generator', LogoutUrlGenerator::class)
@@ -322,5 +324,7 @@ return static function (ContainerConfigurator $container) {
         ->set('cache.security_is_csrf_token_valid_attribute_expression_language')
             ->parent('cache.system')
             ->tag('cache.pool')
+
+        ->set('security.same_as_not_full_fledged_handle', SameAsNotFullFledgedHandle::class)
     ;
 };
