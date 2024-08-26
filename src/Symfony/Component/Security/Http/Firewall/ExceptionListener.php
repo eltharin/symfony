@@ -25,8 +25,10 @@ use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInt
 use Symfony\Component\Security\Core\Exception\AccessDeniedException;
 use Symfony\Component\Security\Core\Exception\AccountStatusException;
 use Symfony\Component\Security\Core\Exception\AuthenticationException;
+use Symfony\Component\Security\Core\Exception\InsufficientAuthenticationException;
 use Symfony\Component\Security\Core\Exception\LazyResponseException;
 use Symfony\Component\Security\Core\Exception\LogoutException;
+use Symfony\Component\Security\Core\Exception\NotFullFledgedException;
 use Symfony\Component\Security\Http\Authorization\AccessDeniedHandlerInterface;
 use Symfony\Component\Security\Http\Authorization\NotFullFledgedHandlerInterface;
 use Symfony\Component\Security\Http\EntryPoint\AuthenticationEntryPointInterface;
@@ -125,9 +127,20 @@ class ExceptionListener
     private function handleAccessDeniedException(ExceptionEvent $event, AccessDeniedException $exception): void
     {
         $event->setThrowable(new AccessDeniedHttpException($exception->getMessage(), $exception));
+return;
         $token = $this->tokenStorage->getToken();
 
-        if ($this->notFullFledgedHandler?->handle($event, $exception, $this->authenticationTrustResolver, $token, $this->logger, function ($request, $exception) {return $this->startAuthentication($request, $exception); })) {
+        try {
+            if ($this->notFullFledgedHandler->handle($event, $exception, $this->authenticationTrustResolver, $token, $this->logger)) {
+                return;
+            }
+        } catch (NotFullFledgedException $e) {
+            dump($e);
+            dump($e->getPrevious());
+            $event->setResponse($this->startAuthentication($event->getRequest(), $e->getPrevious()));
+            return;
+        } catch (\Exception $e) {
+            $event->setThrowable($e);
             return;
         }
 

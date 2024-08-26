@@ -16,6 +16,7 @@ use Symfony\Component\HttpKernel\Event\ExceptionEvent;
 use Symfony\Component\Security\Core\Authentication\AuthenticationTrustResolverInterface;
 use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
 use Symfony\Component\Security\Core\Exception\AccessDeniedException;
+use Symfony\Component\Security\Core\Exception\NotFullFledgedException;
 
 /**
  * This is used by the ExceptionListener to translate an AccessDeniedException
@@ -30,9 +31,8 @@ interface NotFullFledgedHandlerInterface
      * This function can make checks and event / exception changes to change the Response
      * It returns a boolean for break or not after that or continue the ExceptionListener process to decorate Exception and their response.
      *
-     * @param $starAuthenticationCallback callable for call start function from
-     *
-     * @return bool break handleAccessDeniedException function in ExceptionListener after handle
+     * @return bool : break handleAccessDeniedException function in ExceptionListener after handle
+     * @throws NotFullFledgedException : reauthenticate user
      */
-    public function handle(ExceptionEvent $event, AccessDeniedException $exception, AuthenticationTrustResolverInterface $trustResolver, ?TokenInterface $token, ?LoggerInterface $logger, callable $starAuthenticationCallback): bool;
+    public function handle(ExceptionEvent $event, AccessDeniedException $exception, AuthenticationTrustResolverInterface $trustResolver, ?TokenInterface $token, ?LoggerInterface $logger): bool;
 }

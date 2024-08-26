@@ -17,6 +17,7 @@ use Symfony\Component\Security\Core\Authentication\AuthenticationTrustResolverIn
 use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
 use Symfony\Component\Security\Core\Exception\AccessDeniedException;
 use Symfony\Component\Security\Core\Exception\InsufficientAuthenticationException;
+use Symfony\Component\Security\Core\Exception\NotFullFledgedException;
 
 /**
  * NotFullFledgedHandler for considering NotFullFledged Login has to be redirect to login page if AccessDeniedException is thrown
@@ -27,23 +28,17 @@ use Symfony\Component\Security\Core\Exception\InsufficientAuthenticationExceptio
  */
 class NotFullFledgedRedirectToStartAuthenticationHandler implements NotFullFledgedHandlerInterface
 {
-    public function handle(ExceptionEvent $event, AccessDeniedException $exception, AuthenticationTrustResolverInterface $trustResolver, ?TokenInterface $token, ?LoggerInterface $logger, callable $starAuthenticationCallback): bool
+    public function handle(ExceptionEvent $event, AccessDeniedException $exception, AuthenticationTrustResolverInterface $trustResolver, ?TokenInterface $token, ?LoggerInterface $logger): bool
     {
         if (!$trustResolver->isFullFledged($token)) {
             $logger?->debug('Access denied, the user is not fully authenticated; redirecting to authentication entry point.', ['exception' => $exception]);
 
-            try {
-                $insufficientAuthenticationException = new InsufficientAuthenticationException('Full authentication is required to access this resource.', 0, $exception);
-                if (null !== $token) {
-                    $insufficientAuthenticationException->setToken($token);
-                }
-
-                $event->setResponse($starAuthenticationCallback($event->getRequest(), $insufficientAuthenticationException));
-            } catch (\Exception $e) {
-                $event->setThrowable($e);
+            $insufficientAuthenticationException = new InsufficientAuthenticationException('Full authentication is required to access this resource.', 0, $exception);
+            if (null !== $token) {
+                $insufficientAuthenticationException->setToken($token);
             }
 
-            return true;
+            throw new NotFullFledgedException(previous: $insufficientAuthenticationException);
         }
 
         return false;

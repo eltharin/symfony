@@ -18,6 +18,7 @@ use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
 use Symfony\Component\Security\Core\Authorization\Voter\AuthenticatedVoter;
 use Symfony\Component\Security\Core\Exception\AccessDeniedException;
 use Symfony\Component\Security\Core\Exception\InsufficientAuthenticationException;
+use Symfony\Component\Security\Core\Exception\NotFullFledgedException;
 
 /**
  * NotFullFledgedHandler for considering NotFullFledged Login equal to Normal Login except if IS_AUTHENTICATED_FULLY is asked
@@ -29,36 +30,30 @@ use Symfony\Component\Security\Core\Exception\InsufficientAuthenticationExceptio
  */
 class NotFullFledgedEqualNormalLoginHandler implements NotFullFledgedHandlerInterface
 {
-    public function handle(ExceptionEvent $event, AccessDeniedException $exception, AuthenticationTrustResolverInterface $trustResolver, ?TokenInterface $token, ?LoggerInterface $logger, callable $starAuthenticationCallback): bool
+    public function handle(ExceptionEvent $event, AccessDeniedException $exception, AuthenticationTrustResolverInterface $trustResolver, ?TokenInterface $token, ?LoggerInterface $logger): bool
     {
         if (!$trustResolver->isAuthenticated($token)) {
-            $this->reauthenticate($starAuthenticationCallback, $event, $token, $exception, $logger);
+            $this->reauthenticate($token, $exception, $logger);
         }
 
         foreach ($exception->getAttributes() as $attribute) {
             if (\in_array($attribute, [AuthenticatedVoter::IS_AUTHENTICATED_FULLY])) {
-                $this->reauthenticate($starAuthenticationCallback, $event, $token, $exception, $logger);
-
-                return true;
+                $this->reauthenticate($token, $exception, $logger);
             }
         }
 
         return false;
     }
 
-    private function reauthenticate(callable $starAuthenticationCallback, ExceptionEvent $event, ?TokenInterface $token, AccessDeniedException $exception, ?LoggerInterface $logger): void
+    private function reauthenticate(?TokenInterface $token, AccessDeniedException $exception, ?LoggerInterface $logger): void
     {
         $logger?->debug('Access denied, the user is not fully authenticated; redirecting to authentication entry point.', ['exception' => $exception]);
 
-        try {
-            $insufficientAuthenticationException = new InsufficientAuthenticationException('Full authentication is required to access this resource.', 0, $exception);
-            if (null !== $token) {
-                $insufficientAuthenticationException->setToken($token);
-            }
-
-            $event->setResponse($starAuthenticationCallback($event->getRequest(), $insufficientAuthenticationException));
-        } catch (\Exception $e) {
-            $event->setThrowable($e);
+        $insufficientAuthenticationException = new InsufficientAuthenticationException('Full authentication is required to access this resource.', 0, $exception);
+        if (null !== $token) {
+            $insufficientAuthenticationException->setToken($token);
         }
+
+        throw new NotFullFledgedException(previous: $insufficientAuthenticationException);
     }
 }
