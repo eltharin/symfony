@@ -5,13 +5,13 @@ CHANGELOG
 ---
 
  * Add `Security::isGrantedForUser()` to test user authorization without relying on the session. For example, users not currently logged in, or while processing a message from a message queue
+ * Add `security.firewalls.not_full_fledged_handler` option to configure behavior where user is not full fledged
 
 7.2
 ---
 
  * Allow configuring the secret used to sign login links
  * Allow passing optional passport attributes to `Security::login()`
- * Add `security.firewalls.not_full_fledged_handler` option to configure behavior where user is not full fledged
 
 7.1
 ---
