@@ -160,6 +160,21 @@ class EventDispatcherTest extends TestCase
         $this->assertFalse($otherListener->postFooInvoked);
     }
 
+    public function testSkipEventPropagation()
+    {
+        $otherListener = new TestEventListener();
+        $anotherListener = new TestEventListener();
+
+        // preBar() skip the propagation until listener prority > 0
+        $this->dispatcher->addListener('post.foo', [$this->listener, 'preBar'], 10);
+        $this->dispatcher->addListener('post.foo', $otherListener->preFoo(...), 5);
+        $this->dispatcher->addListener('post.foo', $anotherListener->preFoo(...), -5);
+        $this->dispatcher->dispatch(new Event(), self::postFoo);
+        $this->assertTrue($this->listener->preBarInvoked);
+        $this->assertFalse($otherListener->preFooInvoked);
+        $this->assertTrue($anotherListener->preFooInvoked);
+    }
+
     public function testDispatchByPriority()
     {
         $invoked = [];
@@ -437,6 +452,7 @@ class CallableClass
 class TestEventListener
 {
     public string $name;
+    public bool $preBarInvoked = false;
     public bool $preFooInvoked = false;
     public bool $postFooInvoked = false;
 
@@ -454,6 +470,12 @@ class TestEventListener
         if (!$this->preFooInvoked) {
             $e->stopPropagation();
         }
+    }
+
+    public function preBar($e)
+    {
+        $this->preBarInvoked = true;
+        $e->skipPropagationUntil(0);
     }
 
     public function __invoke()

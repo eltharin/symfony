@@ -258,6 +258,37 @@ class TraceableEventDispatcherTest extends TestCase
         ], $logger->cleanLogs());
     }
 
+    public function testLoggerWithSkippedEvent()
+    {
+        $logger = new BufferingLogger();
+
+        $dispatcher = new EventDispatcher();
+        $tdispatcher = new TraceableEventDispatcher($dispatcher, new Stopwatch(), $logger);
+        $tdispatcher->addListener('foo', $listener1 = function (Event $event) { $event->skipPropagationUntil(0); }, 10);
+        $tdispatcher->addListener('foo', $listener2 = function () {}, 5);
+        $tdispatcher->addListener('foo', $listener3 = function () {}, 0);
+
+        $tdispatcher->dispatch(new Event(), 'foo');
+
+        $this->assertSame([
+            [
+                'debug',
+                'Notified event "{event}" to listener "{listener}".',
+                ['event' => 'foo', 'listener' => 'closure'],
+            ],
+            [
+                'debug',
+                'Listener "{listener}" skipped propagation of the event "{event}" until priority 0.',
+                ['event' => 'foo', 'listener' => 'closure'],
+            ],
+            [
+                'debug',
+                'Notified event "{event}" to listener "{listener}".',
+                ['event' => 'foo', 'listener' => 'closure'],
+            ],
+        ], $logger->cleanLogs());
+    }
+
     public function testDispatchCallListeners()
     {
         $called = [];

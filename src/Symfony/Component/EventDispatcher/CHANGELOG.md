@@ -1,10 +1,15 @@
 CHANGELOG
 =========
 
+7.3
+---
+
+* Add `skipPropagationUntil` method to omit listeners but keeping some importants.
+
 6.0
 ---
 
- * Remove `LegacyEventDispatcherProxy`
+* Remove `LegacyEventDispatcherProxy`
 
 5.4
 ---

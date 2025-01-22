@@ -13,6 +13,7 @@ namespace Symfony\Component\EventDispatcher;
 
 use Psr\EventDispatcher\StoppableEventInterface;
 use Symfony\Component\EventDispatcher\Debug\WrappedListener;
+use Symfony\Contracts\EventDispatcher\SkippableEventInterface;
 
 /**
  * The EventDispatcherInterface is the central point of Symfony's event listener system.
@@ -198,11 +199,23 @@ class EventDispatcher implements EventDispatcherInterface
     protected function callListeners(iterable $listeners, string $eventName, object $event): void
     {
         $stoppable = $event instanceof StoppableEventInterface;
+        $skippable = $event instanceof SkippableEventInterface;
 
         foreach ($listeners as $listener) {
             if ($stoppable && $event->isPropagationStopped()) {
                 break;
             }
+
+            if ($skippable && $event->isPropagationSkipped()) {
+                $restartPriority = $event->getPropagationSkipUntilPriority();
+
+                if (null !== $restartPriority && $restartPriority >= $this->getListenerPriority($eventName, $listener)) {
+                    $event->skipPropagationUntil(null);
+                } else {
+                    continue;
+                }
+            }
+
             $listener($event, $eventName, $this);
         }
     }

@@ -291,6 +291,10 @@ class TraceableEventDispatcher implements EventDispatcherInterface, ResetInterfa
 
                 $skipped = true;
             }
+
+            if (null !== $listener->skippedPropagationUntil()) {
+                $this->logger?->debug('Listener "{listener}" skipped propagation of the event "{event}" until priority '.$listener->skippedPropagationUntil().'.', $context);
+            }
         }
     }
 

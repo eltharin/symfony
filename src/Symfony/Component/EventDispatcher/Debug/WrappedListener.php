@@ -15,6 +15,7 @@ use Psr\EventDispatcher\StoppableEventInterface;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\Stopwatch\Stopwatch;
 use Symfony\Component\VarDumper\Caster\ClassStub;
+use Symfony\Contracts\EventDispatcher\SkippableEventInterface;
 
 /**
  * @author Fabien Potencier <fabien@symfony.com>
@@ -30,6 +31,7 @@ final class WrappedListener
     private string $callableRef;
     private ClassStub|string $stub;
     private static bool $hasClassStub;
+    private ?int $skippedPropagationUntil = null;
 
     public function __construct(
         callable|array $listener,
@@ -85,6 +87,11 @@ final class WrappedListener
         return $this->stoppedPropagation;
     }
 
+    public function skippedPropagationUntil(): ?int
+    {
+        return $this->skippedPropagationUntil;
+    }
+
     public function getPretty(): string
     {
         return $this->pretty;
@@ -121,6 +128,10 @@ final class WrappedListener
 
         if ($event instanceof StoppableEventInterface && $event->isPropagationStopped()) {
             $this->stoppedPropagation = true;
+        }
+
+        if ($event instanceof SkippableEventInterface && $event->isPropagationSkipped()) {
+            $this->skippedPropagationUntil = $event->getPropagationSkipUntilPriority();
         }
     }
 
