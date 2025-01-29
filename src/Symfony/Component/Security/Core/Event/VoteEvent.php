@@ -11,6 +11,7 @@
 
 namespace Symfony\Component\Security\Core\Event;
 
+use Symfony\Component\Security\Core\Authorization\Voter\VoteInterface;
 use Symfony\Component\Security\Core\Authorization\Voter\VoterInterface;
 use Symfony\Contracts\EventDispatcher\Event;
 
@@ -27,7 +28,7 @@ final class VoteEvent extends Event
         private VoterInterface $voter,
         private mixed $subject,
         private array $attributes,
-        private int $vote,
+        private VoteInterface|int $vote,
     ) {
     }
 
@@ -46,8 +47,12 @@ final class VoteEvent extends Event
         return $this->attributes;
     }
 
-    public function getVote(): int
+    public function getVote($asObject = false): VoteInterface|int
     {
+        if ($this->vote instanceof VoteInterface && !$asObject) {
+            return $this->vote->getAccess();
+        }
+
         return $this->vote;
     }
 }

@@ -30,7 +30,7 @@ class AuthorizationChecker implements AuthorizationCheckerInterface
     ) {
     }
 
-    final public function isGranted(mixed $attribute, mixed $subject = null): bool
+    final public function isGranted(mixed $attribute, mixed $subject = null, bool $asObject = false): AccessDecision|bool
     {
         $token = $this->tokenStorage->getToken();
 
@@ -38,6 +38,8 @@ class AuthorizationChecker implements AuthorizationCheckerInterface
             $token = new NullToken();
         }
 
-        return $this->accessDecisionManager->decide($token, [$attribute], $subject);
+        $decision = $this->accessDecisionManager->decide($token, [$attribute], $subject, false, $asObject);
+
+        return (!$asObject || $decision instanceof AccessDecision) ? $decision : new AccessDecision($decision);
     }
 }

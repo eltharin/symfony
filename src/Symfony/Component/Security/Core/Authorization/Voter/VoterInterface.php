@@ -35,5 +35,5 @@ interface VoterInterface
      *
      * @return self::ACCESS_*
      */
-    public function vote(TokenInterface $token, mixed $subject, array $attributes): int;
+    public function vote(TokenInterface $token, mixed $subject, array $attributes): VoteInterface|int;
 }

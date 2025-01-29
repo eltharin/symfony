@@ -20,6 +20,7 @@ use Symfony\Component\Security\Core\Authentication\Token\NullToken;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorage;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
 use Symfony\Component\Security\Core\Authentication\Token\UsernamePasswordToken;
+use Symfony\Component\Security\Core\Authorization\AccessDecision;
 use Symfony\Component\Security\Core\Authorization\AccessDecisionManagerInterface;
 use Symfony\Component\Security\Core\Authorization\Voter\AuthenticatedVoter;
 use Symfony\Component\Security\Core\Exception\AccessDeniedException;
@@ -281,5 +282,56 @@ class AccessListenerTest extends TestCase
         );
 
         new AccessListener($tokenStorage, $this->createMock(AccessDecisionManagerInterface::class), $accessMap, true);
+    }
+
+    public function testHandleWhenTheAccessDecisionManagerDecidesToRefuseAccessWithAccessDecisionObject()
+    {
+        $request = new Request();
+
+        $accessMap = $this->createMock(AccessMapInterface::class);
+        $accessMap
+            ->expects($this->any())
+            ->method('getPatterns')
+            ->with($this->equalTo($request))
+            ->willReturn([['foo' => 'bar'], null])
+        ;
+
+        $token = new class extends AbstractToken {
+            public function getCredentials(): mixed
+            {
+            }
+        };
+
+        $tokenStorage = $this->createMock(TokenStorageInterface::class);
+        $tokenStorage
+            ->expects($this->any())
+            ->method('getToken')
+            ->willReturn($token)
+        ;
+
+        $accessDecisionManager = $this->createMock(AccessDecisionManagerInterface::class);
+        $accessDecisionManager
+            ->expects($this->once())
+            ->method('decide')
+            ->with($this->equalTo($token), $this->equalTo(['foo' => 'bar']), $this->equalTo($request))
+            ->willReturn(new AccessDecision(false,[], 'not allowed'))
+        ;
+
+        $listener = new AccessListener(
+            $tokenStorage,
+            $accessDecisionManager,
+            $accessMap
+        );
+
+        $this->expectException(AccessDeniedException::class);
+
+        try {
+            $listener(new RequestEvent($this->createMock(HttpKernelInterface::class), $request, HttpKernelInterface::MAIN_REQUEST));
+        } catch (AccessDeniedException $exception) {
+            $this->assertFalse($exception->getAccessDecision()->getAccess());
+            $this->assertSame('not allowed', $exception->getAccessDecision()->getMessage());
+            throw $exception;
+        }
+
     }
 }

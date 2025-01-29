@@ -11,6 +11,8 @@
 
 namespace Symfony\Component\Security\Core\Authorization\Strategy;
 
+use Symfony\Component\Security\Core\Authorization\AccessDecision;
+use Symfony\Component\Security\Core\Authorization\Voter\VoteInterface;
 use Symfony\Component\Security\Core\Authorization\Voter\VoterInterface;
 
 /**
@@ -38,11 +40,18 @@ final class ConsensusStrategy implements AccessDecisionStrategyInterface, \Strin
     ) {
     }
 
-    public function decide(\Traversable $results): bool
+    public function decide(\Traversable $results, $asObject = false): AccessDecision|bool
     {
         $grant = 0;
         $deny = 0;
+        $allVotes = [];
+
         foreach ($results as $result) {
+            $allVotes[] = $result;
+            if ($result instanceof VoteInterface) {
+                $result = $result->getAccess();
+            }
+
             if (VoterInterface::ACCESS_GRANTED === $result) {
                 ++$grant;
             } elseif (VoterInterface::ACCESS_DENIED === $result) {
@@ -51,22 +60,27 @@ final class ConsensusStrategy implements AccessDecisionStrategyInterface, \Strin
         }
 
         if ($grant > $deny) {
-            return true;
+            return $this->getReturn(true, $asObject, $allVotes);
         }
 
         if ($deny > $grant) {
-            return false;
+            return $this->getReturn(false, $asObject, $allVotes);
         }
 
         if ($grant > 0) {
-            return $this->allowIfEqualGrantedDeniedDecisions;
+            return $this->getReturn($this->allowIfEqualGrantedDeniedDecisions, $asObject, $allVotes);
         }
 
-        return $this->allowIfAllAbstainDecisions;
+        return $this->getReturn($this->allowIfAllAbstainDecisions, $asObject, $allVotes);
     }
 
     public function __toString(): string
     {
         return 'consensus';
+    }
+
+    private function getReturn(bool $result, bool $asObject, array $votes): AccessDecision|bool
+    {
+        return $asObject ? new AccessDecision($result, $votes) : $result;
     }
 }

@@ -18,6 +18,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Event\ControllerArgumentsEvent;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 use Symfony\Component\HttpKernel\HttpKernelInterface;
+use Symfony\Component\Security\Core\Authorization\AccessDecision;
 use Symfony\Component\Security\Core\Authorization\AuthorizationCheckerInterface;
 use Symfony\Component\Security\Core\Exception\AccessDeniedException;
 use Symfony\Component\Security\Http\EventListener\IsGrantedAttributeListener;
@@ -433,5 +434,34 @@ class IsGrantedAttributeListenerTest extends TestCase
         $this->expectExceptionCode(10010);
 
         $listener->onKernelControllerArguments($event);
+    }
+
+    public function testAccessDeniedExceptionWithExceptionCodeAndWithObject()
+    {
+        $authChecker = $this->createMock(AuthorizationCheckerInterface::class);
+        $authChecker->expects($this->any())
+            ->method('isGranted')
+            ->willReturn(new AccessDecision(false, [], 'User denied'));
+
+        $event = new ControllerArgumentsEvent(
+            $this->createMock(HttpKernelInterface::class),
+            [new IsGrantedAttributeMethodsController(), 'exceptionCodeInAccessDeniedException'],
+            [],
+            new Request(),
+            null
+        );
+
+        $listener = new IsGrantedAttributeListener($authChecker);
+
+        $this->expectException(AccessDeniedException::class);
+        $this->expectExceptionMessage('Exception Code');
+        $this->expectExceptionCode(10010);
+
+        try {
+            $listener->onKernelControllerArguments($event);
+        } catch (AccessDeniedException $exception) {
+            $this->assertSame('User denied', $exception->getAccessDecision()->getMessage());
+            throw $exception;
+        }
     }
 }

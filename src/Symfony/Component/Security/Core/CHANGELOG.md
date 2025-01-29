@@ -7,6 +7,7 @@ CHANGELOG
  * Add `UserAuthorizationChecker::isGrantedForUser()` to test user authorization without relying on the session.
    For example, users not currently logged in, or while processing a message from a message queue.
  * Add `OfflineTokenInterface` to mark tokens that do not represent the currently logged-in user
+ * Add the ability for voter to return decision reason by passing a `Vote` object
 
 7.2
 ---

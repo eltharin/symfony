@@ -29,5 +29,26 @@ class UnanimousStrategyTest extends AccessDecisionStrategyTestCase
         $strategy = new UnanimousStrategy(true);
 
         yield [$strategy, self::getVoters(0, 0, 2), true];
+
+        yield [$strategy, [
+            self::getVoterWithVoteObject(1),
+            self::getVoter(-1),
+            self::getVoter(0),
+            self::getVoterWithVoteObject(1),
+        ], false];
+
+        yield [$strategy, [
+            self::getVoterWithVoteObject(-1),
+            self::getVoter(1),
+            self::getVoter(0),
+            self::getVoterWithVoteObject(1),
+        ], false];
+
+        yield [$strategy, [
+            self::getVoterWithVoteObject(0),
+            self::getVoter(0),
+            self::getVoter(0),
+            self::getVoterWithVoteObject(1),
+        ], true];
     }
 }

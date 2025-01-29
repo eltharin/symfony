@@ -14,9 +14,12 @@ namespace Symfony\Component\Security\Core\Tests\Authorization;
 use PHPUnit\Framework\Assert;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
+use Symfony\Component\Security\Core\Authorization\AccessDecision;
 use Symfony\Component\Security\Core\Authorization\AccessDecisionManager;
 use Symfony\Component\Security\Core\Authorization\Strategy\AccessDecisionStrategyInterface;
 use Symfony\Component\Security\Core\Authorization\Voter\CacheableVoterInterface;
+use Symfony\Component\Security\Core\Authorization\Voter\Vote;
+use Symfony\Component\Security\Core\Authorization\Voter\VoteInterface;
 use Symfony\Component\Security\Core\Authorization\Voter\VoterInterface;
 
 class AccessDecisionManagerTest extends TestCase
@@ -36,6 +39,7 @@ class AccessDecisionManagerTest extends TestCase
         $voters = [
             $this->getExpectedVoter(VoterInterface::ACCESS_DENIED),
             $this->getExpectedVoter(VoterInterface::ACCESS_GRANTED),
+            $this->getExpectedVoter(new Vote(VoterInterface::ACCESS_DENIED)),
             $this->getUnexpectedVoter(),
         ];
 
@@ -52,6 +56,11 @@ class AccessDecisionManagerTest extends TestCase
                         case 1:
                             Assert::assertSame(VoterInterface::ACCESS_GRANTED, $result);
 
+                            break;
+                        case 2:
+                            Assert::assertInstanceOf(Vote::class, $result);
+                            Assert::assertSame(VoterInterface::ACCESS_DENIED, $result->getAccess());
+
                             return true;
                     }
                 }
@@ -63,6 +72,96 @@ class AccessDecisionManagerTest extends TestCase
         $manager = new AccessDecisionManager($voters, $strategy);
 
         $this->assertTrue($manager->decide($token, ['ROLE_FOO']));
+    }
+
+    public function testVoterCallsWithAccessDecisionObject()
+    {
+        $token = $this->createMock(TokenInterface::class);
+
+        $voters = [
+            $this->getExpectedVoter(VoterInterface::ACCESS_DENIED),
+            $this->getExpectedVoter(VoterInterface::ACCESS_GRANTED),
+            $this->getExpectedVoter(new Vote(VoterInterface::ACCESS_DENIED)),
+            $this->getUnexpectedVoter(),
+        ];
+
+        $strategy = new class implements AccessDecisionStrategyInterface {
+            public function decide(\Traversable $results): bool
+            {
+                $i = 0;
+                foreach ($results as $result) {
+                    switch ($i++) {
+                        case 0:
+                            Assert::assertSame(VoterInterface::ACCESS_DENIED, $result);
+
+                            break;
+                        case 1:
+                            Assert::assertSame(VoterInterface::ACCESS_GRANTED, $result);
+
+                            break;
+                        case 2:
+                            Assert::assertInstanceOf(Vote::class, $result);
+                            Assert::assertSame(VoterInterface::ACCESS_DENIED, $result->getAccess());
+
+                            return true;
+                    }
+                }
+
+                return false;
+            }
+        };
+
+        $manager = new AccessDecisionManager($voters, $strategy);
+
+        $decision = $manager->decide($token, ['ROLE_FOO'], null, false, true);
+        $this->assertInstanceOf(AccessDecision::class, $decision);
+        $this->assertTrue($decision->getAccess());
+        $this->assertEmpty($decision->getMessage());
+    }
+
+    public function testVoterCallsWithAccessDecisionObjectFromStrategy()
+    {
+        $token = $this->createMock(TokenInterface::class);
+
+        $voters = [
+            $this->getExpectedVoter(VoterInterface::ACCESS_DENIED),
+            $this->getExpectedVoter(VoterInterface::ACCESS_GRANTED),
+            $this->getExpectedVoter(new Vote(VoterInterface::ACCESS_DENIED)),
+            $this->getUnexpectedVoter(),
+        ];
+
+        $strategy = new class implements AccessDecisionStrategyInterface {
+            public function decide(\Traversable $results): AccessDecision
+            {
+                $i = 0;
+                foreach ($results as $result) {
+                    switch ($i++) {
+                        case 0:
+                            Assert::assertSame(VoterInterface::ACCESS_DENIED, $result);
+
+                            break;
+                        case 1:
+                            Assert::assertSame(VoterInterface::ACCESS_GRANTED, $result);
+
+                            break;
+                        case 2:
+                            Assert::assertInstanceOf(Vote::class, $result);
+                            Assert::assertSame(VoterInterface::ACCESS_DENIED, $result->getAccess());
+
+                            return new AccessDecision(true, [], 'message from strategy');
+                    }
+                }
+
+                return new AccessDecision(false, [], 'message from strategy');
+            }
+        };
+
+        $manager = new AccessDecisionManager($voters, $strategy);
+
+        $decision = $manager->decide($token, ['ROLE_FOO'], null, false, true);
+        $this->assertInstanceOf(AccessDecision::class, $decision);
+        $this->assertTrue($decision->getAccess());
+        $this->assertSame('message from strategy', $decision->getMessage());
     }
 
     public function testCacheableVoters()
@@ -270,7 +369,7 @@ class AccessDecisionManagerTest extends TestCase
         };
     }
 
-    private function getExpectedVoter(int $vote): VoterInterface
+    private function getExpectedVoter(VoteInterface|int $vote): VoterInterface
     {
         $voter = $this->createMock(VoterInterface::class);
         $voter->expects($this->once())

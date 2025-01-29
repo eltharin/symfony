@@ -30,9 +30,9 @@ class TraceableVoter implements CacheableVoterInterface
     ) {
     }
 
-    public function vote(TokenInterface $token, mixed $subject, array $attributes): int
+    public function vote(TokenInterface $token, mixed $subject, array $attributes, bool $asObject = false): VoteInterface|int
     {
-        $result = $this->voter->vote($token, $subject, $attributes);
+        $result = $this->voter->vote($token, $subject, $attributes, $asObject);
 
         $this->eventDispatcher->dispatch(new VoteEvent($this->voter, $subject, $attributes, $result), 'debug.security.authorization.vote');
 

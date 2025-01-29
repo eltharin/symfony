@@ -15,6 +15,7 @@ use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
 use Symfony\Component\Security\Core\Authorization\Strategy\AccessDecisionStrategyInterface;
 use Symfony\Component\Security\Core\Authorization\Strategy\AffirmativeStrategy;
 use Symfony\Component\Security\Core\Authorization\Voter\CacheableVoterInterface;
+use Symfony\Component\Security\Core\Authorization\Voter\VoteInterface;
 use Symfony\Component\Security\Core\Authorization\Voter\VoterInterface;
 use Symfony\Component\Security\Core\Exception\InvalidArgumentException;
 
@@ -49,26 +50,32 @@ final class AccessDecisionManager implements AccessDecisionManagerInterface
     /**
      * @param bool $allowMultipleAttributes Whether to allow passing multiple values to the $attributes array
      */
-    public function decide(TokenInterface $token, array $attributes, mixed $object = null, bool $allowMultipleAttributes = false): bool
+    public function decide(TokenInterface $token, array $attributes, mixed $object = null, bool $allowMultipleAttributes = false, bool $asObject = false): AccessDecision|bool
     {
         // Special case for AccessListener, do not remove the right side of the condition before 6.0
         if (\count($attributes) > 1 && !$allowMultipleAttributes) {
             throw new InvalidArgumentException(\sprintf('Passing more than one Security attribute to "%s()" is not supported.', __METHOD__));
         }
 
-        return $this->strategy->decide(
-            $this->collectResults($token, $attributes, $object)
+        $decision = $this->strategy->decide(
+            $this->collectResults($token, $attributes, $object, $asObject), $asObject
         );
+
+        if (!($decision instanceof AccessDecision) && $asObject) {
+            return new AccessDecision($decision);
+        }
+
+        return $decision;
     }
 
     /**
-     * @return \Traversable<int, int>
+     * @return \Traversable<int, VoteInterface|int>
      */
-    private function collectResults(TokenInterface $token, array $attributes, mixed $object): \Traversable
+    private function collectResults(TokenInterface $token, array $attributes, mixed $object, bool $asObject): \Traversable
     {
         foreach ($this->getVoters($attributes, $object) as $voter) {
-            $result = $voter->vote($token, $object, $attributes);
-            if (!\is_int($result) || !(self::VALID_VOTES[$result] ?? false)) {
+            $result = $voter->vote($token, $object, $attributes, $asObject);
+            if (!($result instanceof VoteInterface) && (!\is_int($result) || !(self::VALID_VOTES[$result] ?? false))) {
                 throw new \LogicException(\sprintf('"%s::vote()" must return one of "%s" constants ("ACCESS_GRANTED", "ACCESS_DENIED" or "ACCESS_ABSTAIN"), "%s" returned.', get_debug_type($voter), VoterInterface::class, var_export($result, true)));
             }
 

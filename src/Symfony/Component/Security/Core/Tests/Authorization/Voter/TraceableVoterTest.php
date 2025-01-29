@@ -15,6 +15,7 @@ use PHPUnit\Framework\TestCase;
 use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
 use Symfony\Component\Security\Core\Authorization\Voter\CacheableVoterInterface;
 use Symfony\Component\Security\Core\Authorization\Voter\TraceableVoter;
+use Symfony\Component\Security\Core\Authorization\Voter\Vote;
 use Symfony\Component\Security\Core\Authorization\Voter\VoterInterface;
 use Symfony\Component\Security\Core\Event\VoteEvent;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
@@ -51,6 +52,30 @@ class TraceableVoterTest extends TestCase
         $result = $sut->vote($token, 'anysubject', ['attr1']);
 
         $this->assertSame(VoterInterface::ACCESS_DENIED, $result);
+    }
+
+    public function testVoteWithObject()
+    {
+        $voter = $this->createMock(VoterInterface::class);
+
+        $eventDispatcher = $this->createMock(EventDispatcherInterface::class);
+        $token = $this->createStub(TokenInterface::class);
+        
+        $voter
+            ->expects($this->once())
+            ->method('vote')
+            ->with($token, 'anysubject', ['attr1'])
+            ->willReturn(new Vote(VoterInterface::ACCESS_DENIED));
+
+        $eventDispatcher
+            ->expects($this->once())
+            ->method('dispatch')
+            ->with(new VoteEvent($voter, 'anysubject', ['attr1'], new Vote(VoterInterface::ACCESS_DENIED)), 'debug.security.authorization.vote');
+
+        $sut = new TraceableVoter($voter, $eventDispatcher);
+        $result = $sut->vote($token, 'anysubject', ['attr1'], true);
+
+        $this->assertSame(VoterInterface::ACCESS_DENIED, $result->getAccess());
     }
 
     public function testSupportsAttributeOnCacheable()

@@ -14,6 +14,7 @@ namespace Symfony\Bundle\SecurityBundle\Tests\EventListener;
 use PHPUnit\Framework\TestCase;
 use Symfony\Bundle\SecurityBundle\EventListener\VoteListener;
 use Symfony\Component\Security\Core\Authorization\TraceableAccessDecisionManager;
+use Symfony\Component\Security\Core\Authorization\Voter\Vote;
 use Symfony\Component\Security\Core\Authorization\Voter\VoterInterface;
 use Symfony\Component\Security\Core\Event\VoteEvent;
 
@@ -36,5 +37,24 @@ class VoteListenerTest extends TestCase
 
         $sut = new VoteListener($traceableAccessDecisionManager);
         $sut->onVoterVote(new VoteEvent($voter, 'mysubject', ['myattr1', 'myattr2'], VoterInterface::ACCESS_GRANTED));
+    }
+
+    public function testOnVoterVoteWithObject()
+    {
+        $voter = $this->createMock(VoterInterface::class);
+
+        $traceableAccessDecisionManager = $this
+            ->getMockBuilder(TraceableAccessDecisionManager::class)
+            ->disableOriginalConstructor()
+            ->onlyMethods(['addVoterVote'])
+            ->getMock();
+
+        $traceableAccessDecisionManager
+            ->expects($this->once())
+            ->method('addVoterVote')
+            ->with($voter, ['myattr1', 'myattr2'], new Vote(VoterInterface::ACCESS_GRANTED));
+
+        $sut = new VoteListener($traceableAccessDecisionManager);
+        $sut->onVoterVote(new VoteEvent($voter, 'mysubject', ['myattr1', 'myattr2'], new Vote(VoterInterface::ACCESS_GRANTED)));
     }
 }

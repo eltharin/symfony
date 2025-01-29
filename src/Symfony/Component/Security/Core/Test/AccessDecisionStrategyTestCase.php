@@ -14,8 +14,11 @@ namespace Symfony\Component\Security\Core\Test;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
+use Symfony\Component\Security\Core\Authorization\AccessDecision;
 use Symfony\Component\Security\Core\Authorization\AccessDecisionManager;
 use Symfony\Component\Security\Core\Authorization\Strategy\AccessDecisionStrategyInterface;
+use Symfony\Component\Security\Core\Authorization\Voter\Vote;
+use Symfony\Component\Security\Core\Authorization\Voter\VoteInterface;
 use Symfony\Component\Security\Core\Authorization\Voter\VoterInterface;
 
 /**
@@ -37,6 +40,11 @@ abstract class AccessDecisionStrategyTestCase extends TestCase
         $manager = new AccessDecisionManager($voters, $strategy);
 
         $this->assertSame($expected, $manager->decide($token, ['ROLE_FOO']));
+
+        $decision = $manager->decide($token, ['ROLE_FOO'], null, false, true);
+
+        $this->assertInstanceOf(AccessDecision::class, $decision);
+        $this->assertSame($expected, $decision->getAccess());
     }
 
     /**
@@ -74,6 +82,21 @@ abstract class AccessDecisionStrategyTestCase extends TestCase
             public function vote(TokenInterface $token, $subject, array $attributes): int
             {
                 return $this->vote;
+            }
+        };
+    }
+
+    final protected static function getVoterWithVoteObject(int $vote): VoterInterface
+    {
+        return new class($vote) implements VoterInterface {
+            public function __construct(
+                private int $vote,
+            ) {
+            }
+
+            public function vote(TokenInterface $token, $subject, array $attributes, bool $asObject = false): VoteInterface|int
+            {
+                return $asObject ? new Vote($this->vote) : $this->vote;
             }
         };
     }

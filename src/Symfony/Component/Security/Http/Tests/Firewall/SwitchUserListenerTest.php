@@ -21,7 +21,9 @@ use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorage;
 use Symfony\Component\Security\Core\Authentication\Token\SwitchUserToken;
 use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
 use Symfony\Component\Security\Core\Authentication\Token\UsernamePasswordToken;
+use Symfony\Component\Security\Core\Authorization\AccessDecision;
 use Symfony\Component\Security\Core\Authorization\AccessDecisionManagerInterface;
+use Symfony\Component\Security\Core\Authorization\Voter\Vote;
 use Symfony\Component\Security\Core\Exception\AccessDeniedException;
 use Symfony\Component\Security\Core\Exception\AuthenticationCredentialsNotFoundException;
 use Symfony\Component\Security\Core\User\InMemoryUser;
@@ -372,5 +374,31 @@ class SwitchUserListenerTest extends TestCase
 
         $listener = new SwitchUserListener($this->tokenStorage, $userProvider, $this->userChecker, 'provider123', $this->accessDecisionManager, null, '_switch_user', 'ROLE_ALLOWED_TO_SWITCH', $dispatcher);
         $listener($this->event);
+    }
+
+    public function testSwitchUserIsDisallowedWithObject()
+    {
+        $token = new UsernamePasswordToken(new InMemoryUser('username', '', ['ROLE_FOO']), 'key', ['ROLE_FOO']);
+        $user = new InMemoryUser('username', 'password', []);
+
+        $this->tokenStorage->setToken($token);
+        $this->request->query->set('_switch_user', 'kuba');
+
+        $this->accessDecisionManager->expects($this->once())
+            ->method('decide')->with($token, ['ROLE_ALLOWED_TO_SWITCH'])
+            ->willReturn(new AccessDecision(false, [new Vote(false)], 'User unable to switch'));
+
+        $this->expectException(AccessDeniedException::class);
+
+        try{
+            $listener = new SwitchUserListener($this->tokenStorage, $this->userProvider, $this->userChecker, 'provider123', $this->accessDecisionManager);
+            $listener($this->event);
+        } catch (AccessDeniedException $exception) {
+            $this->assertFalse($exception->getAccessDecision()->getAccess());
+            $this->assertSame('User unable to switch', $exception->getAccessDecision()->getMessage());
+            $this->assertCount(1, $exception->getAccessDecision()->getVotes());
+
+            throw $exception;
+        }
     }
 }

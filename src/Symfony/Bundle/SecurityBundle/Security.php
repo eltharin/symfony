@@ -58,10 +58,10 @@ class Security implements AuthorizationCheckerInterface, UserAuthorizationChecke
     /**
      * Checks if the attributes are granted against the current authentication token and optionally supplied subject.
      */
-    public function isGranted(mixed $attributes, mixed $subject = null): bool
+    public function isGranted(mixed $attributes, mixed $subject = null, $asObject = false): bool
     {
         return $this->container->get('security.authorization_checker')
-            ->isGranted($attributes, $subject);
+            ->isGranted($attributes, $subject, $asObject);
     }
 
     public function getToken(): ?TokenInterface

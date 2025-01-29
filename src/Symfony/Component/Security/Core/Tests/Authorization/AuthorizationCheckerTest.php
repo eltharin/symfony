@@ -16,6 +16,7 @@ use PHPUnit\Framework\TestCase;
 use Symfony\Component\Security\Core\Authentication\Token\NullToken;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorage;
 use Symfony\Component\Security\Core\Authentication\Token\UsernamePasswordToken;
+use Symfony\Component\Security\Core\Authorization\AccessDecision;
 use Symfony\Component\Security\Core\Authorization\AccessDecisionManagerInterface;
 use Symfony\Component\Security\Core\Authorization\AuthorizationChecker;
 use Symfony\Component\Security\Core\User\InMemoryUser;
@@ -76,5 +77,43 @@ class AuthorizationCheckerTest extends TestCase
             ->willReturn(true);
         $this->tokenStorage->setToken($token);
         $this->assertTrue($this->authorizationChecker->isGranted($attribute));
+    }
+
+    public function testIsGrantedWithAccessDecisionObject()
+    {
+        $attribute = new \stdClass();
+
+        $token = new UsernamePasswordToken(new InMemoryUser('username', 'password', ['ROLE_USER']), 'provider', ['ROLE_USER']);
+
+        $this->accessDecisionManager
+            ->expects($this->once())
+            ->method('decide')
+            ->with($this->identicalTo($token), $this->identicalTo([$attribute]))
+            ->willReturn(true);
+        $this->tokenStorage->setToken($token);
+
+        $decision = $this->authorizationChecker->isGranted($attribute, $token, true);
+        $this->assertInstanceOf(AccessDecision::class, $decision);
+        $this->assertTrue($decision->getAccess());
+        $this->assertEmpty($decision->getMessage());
+    }
+
+    public function testIsGrantedWithAccessDecisionObjectFromADM()
+    {
+        $attribute = new \stdClass();
+
+        $token = new UsernamePasswordToken(new InMemoryUser('username', 'password', ['ROLE_USER']), 'provider', ['ROLE_USER']);
+
+        $this->accessDecisionManager
+            ->expects($this->once())
+            ->method('decide')
+            ->with($this->identicalTo($token), $this->identicalTo([$attribute]))
+            ->willReturn(new AccessDecision(true, [], 'from accessDecisionManager'));
+        $this->tokenStorage->setToken($token);
+
+        $decision = $this->authorizationChecker->isGranted($attribute, $token, true);
+        $this->assertInstanceOf(AccessDecision::class, $decision);
+        $this->assertTrue($decision->getAccess());
+        $this->assertSame('from accessDecisionManager', $decision->getMessage());
     }
 }

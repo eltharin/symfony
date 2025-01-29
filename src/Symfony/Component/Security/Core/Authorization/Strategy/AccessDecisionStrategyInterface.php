@@ -11,6 +11,9 @@
 
 namespace Symfony\Component\Security\Core\Authorization\Strategy;
 
+use Symfony\Component\Security\Core\Authorization\AccessDecision;
+use Symfony\Component\Security\Core\Authorization\Voter\VoteInterface;
+
 /**
  * A strategy for turning a stream of votes into a final decision.
  *
@@ -19,7 +22,7 @@ namespace Symfony\Component\Security\Core\Authorization\Strategy;
 interface AccessDecisionStrategyInterface
 {
     /**
-     * @param \Traversable<int> $results
+     * @param \Traversable<int|VoteInterface> $results
      */
-    public function decide(\Traversable $results): bool;
+    public function decide(\Traversable $results): AccessDecision|bool;
 }

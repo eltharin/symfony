@@ -36,5 +36,26 @@ class ConsensusStrategyTest extends AccessDecisionStrategyTestCase
 
         yield [$strategy, self::getVoters(2, 2, 0), false];
         yield [$strategy, self::getVoters(2, 2, 1), false];
+
+        yield [$strategy, [
+            self::getVoterWithVoteObject(1),
+            self::getVoter(-1),
+            self::getVoter(0),
+            self::getVoterWithVoteObject(1),
+        ], true];
+
+        yield [$strategy, [
+            self::getVoterWithVoteObject(1),
+            self::getVoter(-1),
+            self::getVoter(-1),
+            self::getVoterWithVoteObject(1),
+        ], false];
+
+        yield [$strategy, [
+            self::getVoterWithVoteObject(1),
+            self::getVoter(-1),
+            self::getVoter(-1),
+            self::getVoterWithVoteObject(0),
+        ], false];
     }
 }
